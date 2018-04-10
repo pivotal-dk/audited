@@ -1,5 +1,7 @@
 require "spec_helper"
 
+SingleCov.covered! uncovered: 9 # not testing proxy_respond_to? hack / 2 methods
+
 describe Audited::Auditor do
 
   describe "configuration" do
@@ -192,7 +194,7 @@ describe Audited::Auditor do
       expect(user.audits.last.audited_changes.keys).to eq(%w{non_column_attr})
     end
 
-    if ActiveRecord::Base.connection.adapter_name == 'PostgreSQL' && Rails.version >= "4.2.0.0" # Postgres json and jsonb support was added in Rails 4.2
+    if ActiveRecord::Base.connection.adapter_name == 'PostgreSQL'
       describe "'json' and 'jsonb' audited_changes column type" do
         let(:migrations_path) { SPEC_ROOT.join("support/active_record/postgres") }
 
@@ -677,6 +679,33 @@ describe Audited::Auditor do
     end
   end
 
+  describe "own_and_associated_audits" do
+    it "should return audits for self and associated audits" do
+      owner = Models::ActiveRecord::Owner.create!
+      company = owner.companies.create!
+      company.update!(name: "Collective Idea")
+
+      other_owner = Models::ActiveRecord::Owner.create!
+      other_company = other_owner.companies.create!
+
+      expect(owner.own_and_associated_audits).to match_array(owner.audits + company.audits)
+    end
+
+    it "should order audits by creation time" do
+      owner = Models::ActiveRecord::Owner.create!
+      first_audit = owner.audits.first
+      first_audit.update_column(:created_at, 1.year.ago)
+
+      company = owner.companies.create!
+      second_audit = company.audits.first
+      second_audit.update_column(:created_at, 1.month.ago)
+
+      company.update!(name: "Collective Idea")
+      third_audit = company.audits.last
+      expect(owner.own_and_associated_audits.to_a).to eq([third_audit, second_audit, first_audit])
+    end
+  end
+
   describe "without auditing" do
     it "should not save an audit when calling #save_without_auditing" do
       expect {
@@ -722,6 +751,21 @@ describe Audited::Auditor do
       rescue ActiveRecord::StatementInvalid
         STDERR.puts "Thread safety tests cannot be run with SQLite"
       end
+    end
+
+    it "should not save an audit when auditing is globally disabled" do
+      expect(Audited.auditing_enabled).to eq(true)
+      Audited.auditing_enabled = false
+      expect(Models::ActiveRecord::User.auditing_enabled).to eq(false)
+
+      user = create_user
+      expect(user.audits.count).to eq(0)
+
+      Audited.auditing_enabled = true
+      expect(Models::ActiveRecord::User.auditing_enabled).to eq(true)
+
+      user.update_attributes(name: 'Test')
+      expect(user.audits.count).to eq(1)
     end
   end
 

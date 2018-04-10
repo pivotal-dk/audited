@@ -1,11 +1,9 @@
 language: ruby
 cache: bundler
 rvm:
-  - 2.1
-  - 2.2.9
-  - 2.3.6
-  - 2.4.3
-  - 2.5.0
+  - 2.3.7
+  - 2.4.4
+  - 2.5.1
   - ruby-head
 env:
   - DB=SQLITE
@@ -18,8 +16,6 @@ before_install:
   - "travis_retry gem update --system"
   - "travis_retry gem install bundler"
 gemfile:
-  - gemfiles/rails40.gemfile
-  - gemfiles/rails41.gemfile
   - gemfiles/rails42.gemfile
   - gemfiles/rails50.gemfile
   - gemfiles/rails51.gemfile
@@ -27,25 +23,6 @@ gemfile:
 matrix:
   allow_failures:
     - rvm: ruby-head
-  exclude:
-    - rvm: 2.1
-      gemfile: gemfiles/rails50.gemfile
-    - rvm: 2.1
-      gemfile: gemfiles/rails51.gemfile
-    - rvm: 2.1
-      gemfile: gemfiles/rails52.gemfile
-    - rvm: 2.4.3
-      gemfile: gemfiles/rails40.gemfile
-    - rvm: 2.4.3
-      gemfile: gemfiles/rails41.gemfile
-    - rvm: 2.5.0
-      gemfile: gemfiles/rails40.gemfile
-    - rvm: 2.5.0
-      gemfile: gemfiles/rails41.gemfile
-    - rvm: ruby-head
-      gemfile: gemfiles/rails40.gemfile
-    - rvm: ruby-head
-      gemfile: gemfiles/rails41.gemfile
   fast_finish: true
 branches:
   only:

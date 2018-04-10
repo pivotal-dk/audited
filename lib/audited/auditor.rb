@@ -148,7 +148,15 @@ module Audited
 
       # List of attributes that are audited.
       def audited_attributes
-        attributes.except(*non_audited_columns)
+        attributes.except(*self.class.non_audited_columns)
+      end
+
+      # Returns a list combined of record audits and associated audits.
+      def own_and_associated_audits
+        Audited.audit_class.unscoped
+        .where('(auditable_type = :type AND auditable_id = :id) OR (associated_type = :type AND associated_id = :id)',
+          type: self.class.name, id: id)
+        .order(created_at: :desc)
       end
 
       # Combine multiple audits into one.
@@ -165,18 +173,9 @@ module Audited
 
       protected
 
-      def non_audited_columns
-        self.class.non_audited_columns
-      end
-
-      def audited_columns
-        self.class.audited_columns
-      end
-
       def revision_with(attributes)
         dup.tap do |revision|
           revision.id = id
-          revision.send :instance_variable_set, '@attributes', self.attributes if rails_below?('4.2.0')
           revision.send :instance_variable_set, '@new_record', destroyed?
           revision.send :instance_variable_set, '@persisted', !destroyed?
           revision.send :instance_variable_set, '@readonly', false
@@ -199,18 +198,14 @@ module Audited
         end
       end
 
-      def rails_below?(rails_version)
-        Gem::Version.new(Rails::VERSION::STRING) < Gem::Version.new(rails_version)
-      end
-
       private
 
       def audited_changes
         all_changes = respond_to?(:changes_to_save) ? changes_to_save : changes
         if audited_options[:only].present?
-          all_changes.slice(*audited_columns)
+          all_changes.slice(*self.class.audited_columns)
         else
-          all_changes.except(*non_audited_columns)
+          all_changes.except(*self.class.non_audited_columns)
         end
       end
 
@@ -303,10 +298,6 @@ module Audited
         true
       end
 
-      def auditing_enabled=(val)
-        self.class.auditing_enabled = val
-      end
-
       def reconstruct_attributes(audits)
         attributes = {}
         audits.each { |audit| attributes.merge!(audit.new_attributes) }
@@ -361,7 +352,7 @@ module Audited
       end
 
       def auditing_enabled
-        Audited.store.fetch("#{table_name}_auditing_enabled", true)
+        Audited.store.fetch("#{table_name}_auditing_enabled", true) && Audited.auditing_enabled
       end
 
       def auditing_enabled=(val)

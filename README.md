@@ -3,7 +3,7 @@ Audited [![Build Status](https://secure.travis-ci.org/collectiveidea/audited.svg
 
 **Audited** (previously acts_as_audited) is an ORM extension that logs all changes to your models. Audited can also record who made those changes, save comments and associate models related to the changes.
 
-Audited currently (4.x) works with Rails 5.1, 5.0 and 4.2. It may work with 4.1 and 4.0, but this is not guaranteed.
+Audited currently (4.x) works with Rails 5.2, 5.1, 5.0 and 4.2.
 
 For Rails 3, use gem version 3.0 or see the [3.0-stable branch](https://github.com/collectiveidea/audited/tree/3.0-stable).
 
@@ -11,11 +11,9 @@ For Rails 3, use gem version 3.0 or see the [3.0-stable branch](https://github.c
 
 Audited supports and is [tested against](http://travis-ci.org/collectiveidea/audited) the following Ruby versions:
 
-* 2.1.10
-* 2.2.9
-* 2.3.6
-* 2.4.3
-* 2.5.0
+* 2.3.7
+* 2.4.4
+* 2.5.1
 
 Audited may work just fine with a Ruby version not listed above, but we can't guarantee that it will. If you'd like to maintain a Ruby that isn't listed, please let us know with a [pull request](https://github.com/collectiveidea/audited/pulls).
 
@@ -255,6 +253,11 @@ user.audits.last.associated # => #<Company name: "Collective Idea">
 company.associated_audits.last.auditable # => #<User name: "Steve Richert">
 ```
 
+You can access records' own audits and associated audits in one go:
+```ruby
+company.own_and_associated_audits
+```
+
 ### Conditional auditing
 
 If you want to audit only under specific conditions, you can provide conditional options (similar to ActiveModel callbacks) that will ensure your model is only audited for these conditions.
@@ -310,6 +313,12 @@ To disable auditing on an entire model:
 
 ```ruby
 User.auditing_enabled = false
+```
+
+To disable auditing on all models:
+
+```ruby
+Audited.auditing_enabled = false
 ```
 
 ### Custom `Audit` model

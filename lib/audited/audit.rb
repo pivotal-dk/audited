@@ -88,20 +88,18 @@ module Audited
 
     # Allows user to undo changes
     def undo
-      model = self.auditable_type.constantize
-      if action == 'create'
+      case action
+      when 'create'
         # destroys a newly created record
-        model.find(auditable_id).destroy!
-      elsif action == 'destroy'
+        auditable.destroy!
+      when 'destroy'
         # creates a new record with the destroyed record attributes
-        model.create(audited_changes)
-      else
+        auditable_type.constantize.create!(audited_changes)
+      when 'update'
         # changes back attributes
-        audited_object = model.find(auditable_id)
-        self.audited_changes.each do |k, v|
-          audited_object[k] = v[0]
-        end
-        audited_object.save
+        auditable.update_attributes!(audited_changes.transform_values(&:first))
+      else
+        raise StandardError, "invalid action given #{action}"
       end
     end
 
@@ -171,7 +169,7 @@ module Audited
     private
 
     def set_version_number
-      max = self.class.auditable_finder(auditable_id, auditable_type).descending.first.try(:version) || 0
+      max = self.class.auditable_finder(auditable_id, auditable_type).maximum(:version) || 0
       self.version = max + 1
     end
 

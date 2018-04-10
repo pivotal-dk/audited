@@ -4,16 +4,25 @@
 
 Breaking changes
 
-- None
+- removed `audited_columns`, `non_audited_columns`, `auditing_enabled=` instance methods,
+  use class methods instead
+  [#424](https://github.com/collectiveidea/audited/pull/424)
+- removed rails 4.1 and 4.0 support
+  [#431](https://github.com/collectiveidea/audited/pull/431)
 
 Added
 
-- None
+- Add ability to globally disable auditing
+  [#426](https://github.com/collectiveidea/audited/pull/426)
+- Add `own_and_associated_audits` method to auditable models
+  [#428](https://github.com/collectiveidea/audited/pull/428)
 
 Changed
 
 - Change/deprecate `version` attribute to `audit_version` attribute
   [#443](https://github.com/collectiveidea/audited/pull/443)
+- Add version to auditable_index
+  [#427](https://github.com/collectiveidea/audited/pull/427)
 
 Fixed
 
