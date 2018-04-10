@@ -6,25 +6,44 @@ module Audited
   # * <tt>auditable</tt>: the ActiveRecord model that was changed
   # * <tt>user</tt>: the user that performed the change; a string or an ActiveRecord model
   # * <tt>action</tt>: one of create, update, or delete
-  # * <tt>audited_changes</tt>: a serialized hash of all the changes
+  # * <tt>audited_changes</tt>: a hash of all the changes
   # * <tt>comment</tt>: a comment set with the audit
   # * <tt>version</tt>: the version of the model
   # * <tt>request_uuid</tt>: a uuid based that allows audits from the same controller request
   # * <tt>created_at</tt>: Time that the change was performed
   #
-  class Audit < ::ActiveRecord::Base
-    include ActiveModel::Observing
 
+  class YAMLIfTextColumnType
+    class << self
+      def load(obj)
+        if Audited.audit_class.columns_hash["audited_changes"].type.to_s == "text"
+          ActiveRecord::Coders::YAMLColumn.new(Object).load(obj)
+        else
+          obj
+        end
+      end
+
+      def dump(obj)
+        if Audited.audit_class.columns_hash["audited_changes"].type.to_s == "text"
+          ActiveRecord::Coders::YAMLColumn.new(Object).dump(obj)
+        else
+          obj
+        end
+      end
+    end
+  end
+
+  class Audit < ::ActiveRecord::Base
     belongs_to :auditable,  polymorphic: true
     belongs_to :user,       polymorphic: true
     belongs_to :associated, polymorphic: true
 
-    before_create :set_version_number, :set_audit_user, :set_request_uuid
+    before_create :set_version_number, :set_audit_user, :set_request_uuid, :set_remote_address
 
     cattr_accessor :audited_class_names
     self.audited_class_names = Set.new
 
-    serialize :audited_changes
+    serialize :audited_changes, YAMLIfTextColumnType
 
     scope :ascending,     ->{ reorder(version: :asc) }
     scope :descending,    ->{ reorder(version: :desc)}
@@ -67,6 +86,25 @@ module Audited
       end
     end
 
+    # Allows user to undo changes
+    def undo
+      model = self.auditable_type.constantize
+      if action == 'create'
+        # destroys a newly created record
+        model.find(auditable_id).destroy!
+      elsif action == 'destroy'
+        # creates a new record with the destroyed record attributes
+        model.create(audited_changes)
+      else
+        # changes back attributes
+        audited_object = model.find(auditable_id)
+        self.audited_changes.each do |k, v|
+          audited_object[k] = v[0]
+        end
+        audited_object.save
+      end
+    end
+
     # Allows user to be set to either a string or an ActiveRecord object
     # @private
     def user_as_string=(user)
@@ -95,10 +133,10 @@ module Audited
     # by +user+. This method is hopefully threadsafe, making it ideal
     # for background operations that require audit information.
     def self.as_user(user, &block)
-      Thread.current[:audited_user] = user
+      ::Audited.store[:audited_user] = user
       yield
     ensure
-      Thread.current[:audited_user] = nil
+      ::Audited.store[:audited_user] = nil
     end
 
     # @private
@@ -138,12 +176,18 @@ module Audited
     end
 
     def set_audit_user
-      self.user = Thread.current[:audited_user] if Thread.current[:audited_user]
+      self.user ||= ::Audited.store[:audited_user] # from .as_user
+      self.user ||= ::Audited.store[:current_user].try!(:call) # from Sweeper
       nil # prevent stopping callback chains
     end
 
     def set_request_uuid
+      self.request_uuid ||= ::Audited.store[:current_request_uuid]
       self.request_uuid ||= SecureRandom.uuid
+    end
+
+    def set_remote_address
+      self.remote_address ||= ::Audited.store[:current_remote_address]
     end
   end
 end

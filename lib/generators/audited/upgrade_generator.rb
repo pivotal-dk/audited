@@ -3,11 +3,13 @@ require 'rails/generators/migration'
 require 'active_record'
 require 'rails/generators/active_record'
 require 'generators/audited/migration'
+require 'generators/audited/migration_helper'
 
 module Audited
   module Generators
     class UpgradeGenerator < Rails::Generators::Base
       include Rails::Generators::Migration
+      include Audited::Generators::MigrationHelper
       extend Audited::Generators::Migration
 
       source_root File.expand_path("../templates", __FILE__)
@@ -23,6 +25,7 @@ module Audited
       def migrations_to_be_applied
         Audited::Audit.reset_column_information
         columns = Audited::Audit.columns.map(&:name)
+        indexes = Audited::Audit.connection.indexes(Audited::Audit.table_name)
 
         yield :add_comment_to_audits unless columns.include?('comment')
 
@@ -50,6 +53,10 @@ module Audited
 
         if columns.include?('association_id')
           yield :rename_association_to_associated
+        end
+
+        if indexes.any? { |i| i.columns == %w[associated_id associated_type] }
+          yield :revert_polymorphic_indexes_order
         end
       end
     end
