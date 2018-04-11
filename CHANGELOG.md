@@ -19,7 +19,7 @@ Added
 
 Changed
 
-- Change/deprecate `version` attribute to `audit_version` attribute
+- Rename audited resource revision `version` attribute to `audit_version` and deprecate `version` attribute
   [#443](https://github.com/collectiveidea/audited/pull/443)
 - Add version to auditable_index
   [#427](https://github.com/collectiveidea/audited/pull/427)
